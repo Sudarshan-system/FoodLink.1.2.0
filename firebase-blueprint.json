@@ -1,0 +1,138 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "User profile with role, sub-type verification documents, and verification status",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "email": { "type": "string" },
+        "displayName": { "type": "string" },
+        "role": { "type": "string", "enum": ["donor", "recipient", "restaurant", "ngo", "individual_donor"] },
+        "donorType": { "type": "string", "enum": ["restaurant", "individual_event"] },
+        "recipientType": { "type": "string", "enum": ["ngo_shelter"] },
+        "verificationStatus": { "type": "string", "enum": ["pending", "verified", "rejected"] },
+        "verificationDocs": { "type": "object" },
+        "orgName": { "type": "string" },
+        "isDemo": { "type": "boolean" },
+        "phone": { "type": "string" },
+        "city": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["uid", "role", "orgName", "phone", "city"]
+    },
+    "FoodListing": {
+      "title": "FoodListing",
+      "description": "Surplus food donation listing with safety checklist and verification badges",
+      "type": "object",
+      "properties": {
+        "title": { "type": "string" },
+        "donorId": { "type": "string" },
+        "donorOrg": { "type": "string" },
+        "donorType": { "type": "string" },
+        "verificationStatus": { "type": "string" },
+        "status": { "type": "string", "enum": ["available", "claimed", "in_transit", "completed", "cancelled"] },
+        "currentTemperature": { "type": "number" },
+        "temperatureLogs": { "type": "array" },
+        "latestTemperatureLog": { "type": "object" },
+        "pickupQrCode": { "type": "string" },
+        "deliveryQrCode": { "type": "string" },
+        "pickupVerified": { "type": "boolean" },
+        "pickupVerifiedAt": { "type": "string" },
+        "pickupVerifiedBy": { "type": "string" },
+        "pickupTemperature": { "type": "number" },
+        "deliveryVerified": { "type": "boolean" },
+        "deliveryVerifiedAt": { "type": "string" },
+        "deliveryVerifiedBy": { "type": "string" },
+        "deliveryTemperature": { "type": "number" },
+        "transferProofHash": { "type": "string" }
+      },
+      "required": ["title", "donorId", "status"]
+    },
+    "TransferVerification": {
+      "title": "TransferVerification",
+      "description": "Secure contactless QR code verification record for meal pickup and delivery handoffs",
+      "type": "object",
+      "properties": {
+        "listingId": { "type": "string" },
+        "stage": { "type": "string", "enum": ["pickup", "delivery"] },
+        "verifiedByRole": { "type": "string", "enum": ["donor", "recipient", "volunteer", "admin"] },
+        "verifiedByName": { "type": "string" },
+        "verifiedById": { "type": "string" },
+        "partnerOrg": { "type": "string" },
+        "timestamp": { "type": "string" },
+        "temperatureCelsius": { "type": "number" },
+        "qrPayload": { "type": "string" },
+        "proofDigest": { "type": "string" },
+        "status": { "type": "string" }
+      },
+      "required": ["listingId", "stage", "verifiedByRole", "timestamp"]
+    },
+    "MealRequestSubscription": {
+      "title": "MealRequestSubscription",
+      "description": "Donor push notification alert subscription for new local meal requests in their area",
+      "type": "object",
+      "properties": {
+        "donorId": { "type": "string" },
+        "donorName": { "type": "string" },
+        "donorOrg": { "type": "string" },
+        "donorEmail": { "type": "string" },
+        "city": { "type": "string" },
+        "area": { "type": "string" },
+        "radiusKm": { "type": "number" },
+        "dietaryPreference": { "type": "string", "enum": ["all", "veg", "non-veg"] },
+        "minPortions": { "type": "number" },
+        "pushToken": { "type": "string" },
+        "browserPermissionGranted": { "type": "boolean" },
+        "active": { "type": "boolean" },
+        "notifySound": { "type": "boolean" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["donorId", "city", "active"]
+    },
+    "MealRequest": {
+      "title": "MealRequest",
+      "description": "Community hunger demand meal request posted by verified shelter or orphanage",
+      "type": "object",
+      "properties": {
+        "ngoName": { "type": "string" },
+        "contactPerson": { "type": "string" },
+        "phone": { "type": "string" },
+        "city": { "type": "string" },
+        "peopleCount": { "type": "number" },
+        "mealType": { "type": "string" },
+        "neededDate": { "type": "string" },
+        "dietaryPreference": { "type": "string" },
+        "urgency": { "type": "string" },
+        "specialNotes": { "type": "string" },
+        "status": { "type": "string", "enum": ["open", "pledged", "fulfilled"] },
+        "pledgedByDonor": { "type": "string" },
+        "createdAt": { "type": "string" }
+      },
+      "required": ["ngoName", "city", "peopleCount", "mealType", "status"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "UserProfile",
+      "description": "Stores user profiles with verification documents and verification status"
+    },
+    "/listings/{listingId}": {
+      "schema": "FoodListing",
+      "description": "Stores surplus food listings"
+    },
+    "/transferVerifications/{verificationId}": {
+      "schema": "TransferVerification",
+      "description": "Stores QR code meal transfer verification records for pickup and delivery"
+    },
+    "/mealRequestSubscriptions/{subscriptionId}": {
+      "schema": "MealRequestSubscription",
+      "description": "Stores donor push notification subscriptions for local meal requests"
+    },
+    "/mealRequests/{requestId}": {
+      "schema": "MealRequest",
+      "description": "Stores community meal requests posted by NGOs and shelters"
+    }
+  }
+}

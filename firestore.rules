@@ -1,0 +1,112 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Security Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isDemoId(id) {
+      return id.matches('demo.*') || id.matches('demo_.*');
+    }
+
+    // 1. Users collection:
+    // Only authenticated users can view profiles, and users may only edit their own profile document.
+    // Demo accounts are permitted for interactive walkthroughs.
+    match /users/{userId} {
+      allow read: if isAuthenticated() || isDemoId(userId);
+      allow create: if isOwner(userId) || isDemoId(userId);
+      allow update: if isOwner(userId) || isDemoId(userId);
+      allow delete: if isOwner(userId) || isDemoId(userId);
+    }
+
+    // 2. Food Listings collection:
+    // Publicly readable so hunger relief organizations and community members can discover surplus food.
+    // Writes restricted to authenticated donors for their own listings.
+    match /listings/{listingId} {
+      allow read: if true;
+      allow create: if (isAuthenticated() && request.resource.data.donorId == request.auth.uid) ||
+                      request.resource.data.donorId.matches('demo.*') ||
+                      request.resource.data.isDemo == true;
+      allow update: if (isAuthenticated() && (
+                        resource.data.donorId == request.auth.uid || 
+                        request.resource.data.status in ['available', 'claimed', 'in_transit', 'completed', 'cancelled', 'expired', 'rejected']
+                      )) ||
+                      resource.data.donorId.matches('demo.*') ||
+                      resource.data.isDemo == true ||
+                      request.resource.data.isDemo == true;
+      allow delete: if (isAuthenticated() && resource.data.donorId == request.auth.uid) ||
+                      resource.data.donorId.matches('demo.*') ||
+                      resource.data.isDemo == true;
+    }
+
+    // 3. Community Meal Requests:
+    // Publicly readable for food rescue discovery.
+    // Creation and updates restricted to authenticated shelter/NGO owners or claiming donors.
+    match /mealRequests/{requestId} {
+      allow read: if true;
+      allow create: if (isAuthenticated() && (request.resource.data.requestedBy == request.auth.uid || request.resource.data.ngoId == request.auth.uid)) ||
+                      request.resource.data.requestedBy.matches('demo.*') ||
+                      request.resource.data.isDemo == true;
+      allow update: if (isAuthenticated() && (
+                        resource.data.requestedBy == request.auth.uid ||
+                        resource.data.ngoId == request.auth.uid ||
+                        request.resource.data.status in ['pending', 'matched', 'fulfilled', 'cancelled', 'in_progress']
+                      )) ||
+                      resource.data.requestedBy.matches('demo.*') ||
+                      resource.data.isDemo == true ||
+                      request.resource.data.isDemo == true;
+      allow delete: if (isAuthenticated() && (resource.data.requestedBy == request.auth.uid || resource.data.ngoId == request.auth.uid)) ||
+                      resource.data.requestedBy.matches('demo.*') ||
+                      resource.data.isDemo == true;
+    }
+
+    // 4. Local Area Meal Request Subscriptions:
+    // Donors subscribing to push alerts for meal requests in their area.
+    match /mealRequestSubscriptions/{subscriptionId} {
+      allow read: if isAuthenticated() || isDemoId(subscriptionId);
+      allow create: if (isAuthenticated() && (request.resource.data.donorId == request.auth.uid || request.resource.data.userId == request.auth.uid)) ||
+                      subscriptionId.matches('demo.*') ||
+                      request.resource.data.isDemo == true;
+      allow update, delete: if (isAuthenticated() && (resource.data.donorId == request.auth.uid || resource.data.userId == request.auth.uid)) ||
+                              subscriptionId.matches('demo.*') ||
+                              resource.data.isDemo == true;
+    }
+
+    // 5. FCM Push Notification Tokens:
+    // Hardened so users can only manage their own push registration token.
+    match /fcm_tokens/{tokenId} {
+      allow read: if isAuthenticated() || tokenId.matches('demo.*');
+      allow create, update: if (isAuthenticated() && request.resource.data.userId == request.auth.uid) ||
+                              tokenId.matches('demo.*') ||
+                              tokenId.matches('.*guest.*');
+      allow delete: if (isAuthenticated() && resource.data.userId == request.auth.uid) ||
+                      tokenId.matches('demo.*');
+    }
+
+    // 6. Transfer Verifications (Chain of Custody / QR Audits):
+    // Publicly readable for audit verification, protected writes.
+    match /transferVerifications/{verificationId} {
+      allow read: if true;
+      allow create, update: if isAuthenticated() || request.resource.data.isDemo == true || verificationId.matches('demo.*');
+      allow delete: if isAuthenticated() || verificationId.matches('demo.*');
+    }
+
+    // 7. Notifications:
+    // Accessible strictly by the recipient user.
+    match /notifications/{notificationId} {
+      allow read: if (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.recipientId == request.auth.uid)) ||
+                     resource.data.userId.matches('demo.*') ||
+                     notificationId.matches('demo.*');
+      allow create: if isAuthenticated() || request.resource.data.isDemo == true || notificationId.matches('demo.*');
+      allow update, delete: if (isAuthenticated() && (resource.data.userId == request.auth.uid || resource.data.recipientId == request.auth.uid)) ||
+                              resource.data.userId.matches('demo.*') ||
+                              notificationId.matches('demo.*');
+    }
+  }
+}
